@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monthly Bookkeeper</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      background: #B8B8B8;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    :root {
+      --bg-primary: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-subtle: #F8F9FA;
+      --bg-muted: #E9ECEF;
+      --text-primary: #1a1a1a;
+      --text-secondary: #495057;
+      --text-muted: #64748B;
+      --text-subtle: #94A3B8;
+      --accent: #5856D6;
+      --accent-light: #7C7AE6;
+      --positive: #5AC8C8;
+      --positive-dark: #3BA8A8;
+      --negative: #E57373;
+      --negative-dark: #C54949;
+      --border: #E9ECEF;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+      transition: box-shadow 0.2s ease;
+    }
+    .card:hover { box-shadow: var(--shadow-lg); }
+
+    .tab-bar { background: var(--bg-muted); padding: 4px; border-radius: 12px; }
+    .tab-active { background: var(--bg-card); color: var(--accent); box-shadow: var(--shadow-sm); font-weight: 600; }
+    .tab-inactive { background: transparent; color: var(--text-muted); }
+    .tab-inactive:hover { color: var(--text-secondary); }
+
+    .month-active { background: var(--accent); color: white; }
+    .month-inactive { background: var(--bg-subtle); color: var(--text-muted); }
+    .month-inactive:hover { background: var(--bg-muted); color: var(--text-secondary); }
+    .month-annual { background: linear-gradient(135deg, var(--accent) 0%, #7C7AE6 100%); color: white; font-weight: 600; }
+
+    input[type="number"], input[type="text"], select {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+      outline: none;
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(88, 86, 214, 0.15);
+    }
+    input::placeholder { color: var(--text-subtle); }
+    input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
+
+    .progress-bar { background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%); }
+    .progress-bar-positive { background: linear-gradient(90deg, var(--positive-dark) 0%, var(--positive) 100%); }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+    .btn-secondary { background: var(--bg-subtle); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-muted); color: var(--text-primary); }
+
+    .chart-bar { border-radius: 4px 4px 0 0; transition: height 0.3s ease; }
+
+    .tax-table { font-size: 12px; width: 100%; border-collapse: collapse; }
+    .tax-table th, .tax-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    .tax-table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+    .tax-table td { color: var(--text-secondary); }
+    .tax-table tr.active { background: rgba(88, 86, 214, 0.08); }
+    .tax-table tr.active td { color: var(--accent); font-weight: 600; }
+
+    .donut-chart { position: relative; }
+    .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // === SUPABASE INIT ===
+    const SUPABASE_URL = 'https://cjcvtkcqbaubyqlijssj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqY3Z0a2NxYmF1YnlxbGlqc3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTg3NDMsImV4cCI6MjA4NzY5NDc0M30.kBZifO9Unx6kLvQ9Lqb-VKA3LDVQ-V9ROd-tLj2L-Jk';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Cloud sync functions
+    async function loadFromSupabase(userId) {
+      const { data, error } = await sb.from('bookkeeper_data').select('data').eq('user_id', userId).single();
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+      return data ? data.data : null;
+    }
+
+    async function saveToSupabase(userId, appData) {
+      const { error } = await sb.from('bookkeeper_data').upsert(
+        { user_id: userId, data: appData, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      if (error) throw error;
+    }
+
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const STORAGE_KEY = 'erik_finance_tracker_data';
+
+    const TAX_BRACKETS = [
+      { min: 0, max: 23200, rate: 0.10 },
+      { min: 23200, max: 94300, rate: 0.12 },
+      { min: 94300, max: 201050, rate: 0.22 },
+      { min: 201050, max: 383900, rate: 0.24 },
+      { min: 383900, max: 487450, rate: 0.32 },
+      { min: 487450, max: 731200, rate: 0.35 },
+      { min: 731200, max: Infinity, rate: 0.37 }
+    ];
+
+    const STANDARD_DEDUCTION_MFJ = 29200;
+    const SE_TAX_RATE = 0.1413;
+
+    const CARD_COLORS = ['#5856D6', '#E57373', '#5AC8C8', '#F59E0B'];
+
+    const createDefaultMonth = () => ({
+      // Per-month income (starts empty - user adds their own streams)
+      incomeStreams: [],
+      monthlyBills: 0,
+      actualDebtPayment: 0,
+      // Per-month TTH transactions
+      // tthAvailableFunds defaults to 1000, but housingBack and tthCheckTo
+      // are calculated dynamically from annualHousingAllowance
+      tthAvailableFunds: 1000   // Available funds inside Take the Hill
+      // housingBack and tthCheckTo are NOT stored here - they default to calculated values
+    });
+    const createDefaultYear = () => {
+      const months = {};
+      MONTHS.forEach(m => { months[m] = createDefaultMonth(); });
+      return months;
+    };
+
+    const createDefaultDebtCards = () => ([
+      { id: 1, name: 'Chase (...1343)', startingBalance: 0 },
+      { id: 2, name: 'Credit Card 2', startingBalance: 0 },
+      { id: 3, name: 'Credit Card 3', startingBalance: 0 },
+      { id: 4, name: 'Credit Card 4', startingBalance: 0 }
+    ]);
+
+    const createDefaultCardData = () => ({});
+
+    const createDefaultSettings = () => ({
+      // Take the Hill specific (global - for tax calculations)
+      annualHousingAllowance: 40000,
+      // Investment settings (global)
+      erikIRA: 583,
+      betsyIRA: 0,
+      bitcoin: 146,
+      rothMax: 7000,
+      betsyIRAMax: 7000
+    });
+
+    const formatCurrency = (amount) => {
+      const num = parseFloat(amount) || 0;
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+    };
+
+    const formatCurrencyDecimal = (amount) => {
+      const num = parseFloat(amount) || 0;
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    };
+
+    const calculateIncomeTax = (taxableIncome) => {
+      if (taxableIncome <= 0) return 0;
+      let tax = 0;
+      let remaining = taxableIncome;
+      for (const bracket of TAX_BRACKETS) {
+        if (remaining <= 0) break;
+        const bracketWidth = bracket.max - bracket.min;
+        const taxableInBracket = Math.min(remaining, bracketWidth);
+        tax += taxableInBracket * bracket.rate;
+        remaining -= taxableInBracket;
+      }
+      return tax;
+    };
+
+    const getCurrentBracket = (taxableIncome) => {
+      for (const bracket of TAX_BRACKETS) {
+        if (taxableIncome <= bracket.max) return bracket.rate;
+      }
+      return 0.37;
+    };
+
+    const calculateTaxes = (monthlyGross, annualHousingAllowance, monthlyW2 = 0, monthly1099 = 0) => {
+      // Annual figures
+      const annualGross = monthlyGross * 12;
+      const annualW2 = monthlyW2 * 12;
+      const annual1099 = monthly1099 * 12;
+
+      // SE Tax - ministers pay on ALL ministerial income (W-2 + 1099)
+      const annualSETax = annualGross * SE_TAX_RATE;
+      const monthlySETax = annualSETax / 12;
+      const monthlySETaxW2 = (annualW2 * SE_TAX_RATE) / 12;
+      const monthlySETax1099 = (annual1099 * SE_TAX_RATE) / 12;
+
+      // 50% SE Tax deduction (above-the-line)
+      const seDeduction = annualSETax / 2;
+
+      // Taxable income: Gross - Housing Allowance - 50% SE - Standard Deduction
+      // Housing allowance offsets W-2 income for income tax purposes
+      const taxableIncome = Math.max(0, annualGross - annualHousingAllowance - STANDARD_DEDUCTION_MFJ - seDeduction);
+      const annualIncomeTax = calculateIncomeTax(taxableIncome);
+      const monthlyIncomeTax = annualIncomeTax / 12;
+
+      // Totals
+      const totalMonthlyTax = monthlySETax + monthlyIncomeTax;
+      const effectiveRate = monthlyGross > 0 ? totalMonthlyTax / monthlyGross : 0;
+      const currentBracket = getCurrentBracket(taxableIncome);
+      const quarterlyPayment = totalMonthlyTax * 3;
+
+      // Housing allowance savings (what you'd owe in income tax without it)
+      const taxableWithoutHousing = Math.max(0, annualGross - STANDARD_DEDUCTION_MFJ - seDeduction);
+      const taxWithoutHousing = calculateIncomeTax(taxableWithoutHousing);
+      const housingAllowanceSavings = taxWithoutHousing - annualIncomeTax;
+
+      return {
+        // Monthly figures
+        monthlySETax,
+        monthlySETaxW2,
+        monthlySETax1099,
+        monthlyIncomeTax,
+        totalMonthlyTax,
+        quarterlyPayment,
+        effectiveRate,
+        currentBracket,
+        // Annual figures
+        annualGross,
+        annualW2,
+        annual1099,
+        annualSETax,
+        seDeduction,
+        taxableIncome,
+        annualIncomeTax,
+        housingAllowanceSavings
+      };
+    };
+
+    // Donut Chart Component
+    function DonutChart({ data, size = 200, strokeWidth = 40 }) {
+      const total = data.reduce((sum, d) => sum + d.value, 0);
+      if (total === 0) return <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No data</div>;
+
+      const radius = (size - strokeWidth) / 2;
+      const circumference = 2 * Math.PI * radius;
+      let offset = 0;
+
+      return (
+        <div className="donut-chart" style={{ width: size, height: size }}>
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            {data.map((d, i) => {
+              const percentage = d.value / total;
+              const strokeDasharray = `${percentage * circumference} ${circumference}`;
+              const strokeDashoffset = -offset;
+              offset += percentage * circumference;
+              return (
+                <circle
+                  key={i}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  stroke={d.color}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                />
+              );
+            })}
+          </svg>
+          <div className="donut-center">
+            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCurrency(total)}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Total</div>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [activeTab, setActiveTab] = useState(0);
+      const [currentYear, setCurrentYear] = useState(2026);
+      const [currentMonth, setCurrentMonth] = useState('January');
+      const [isAnnualView, setIsAnnualView] = useState(false);
+      const [years, setYears] = useState({ 2026: createDefaultYear() });
+      const [debtCards, setDebtCards] = useState(createDefaultDebtCards());
+      const [cardData, setCardData] = useState(createDefaultCardData());
+      const [settings, setSettings] = useState(createDefaultSettings());
+      const [user, setUser] = useState(null);
+      const [authLoading, setAuthLoading] = useState(true);
+      const [syncStatus, setSyncStatus] = useState(''); // '', 'syncing', 'synced', 'error'
+
+      // Auth listener
+      useEffect(() => {
+        sb.auth.getSession().then(({ data: { session } }) => {
+          setUser(session?.user ?? null);
+          setAuthLoading(false);
+        });
+        const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null);
+        });
+        return () => subscription.unsubscribe();
+      }, []);
+
+      // Load data: localStorage first, then merge cloud data if signed in
+      useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            // Migration: Clear old hardcoded housingBack and tthCheckTo values
+            // so they recalculate based on annualHousingAllowance
+            if (data.years) {
+              Object.keys(data.years).forEach(year => {
+                Object.keys(data.years[year] || {}).forEach(month => {
+                  if (data.years[year][month]) {
+                    delete data.years[year][month].housingBack;
+                    delete data.years[year][month].tthCheckTo;
+                  }
+                });
+              });
+              setYears(data.years);
+            }
+            if (data.debtCards) setDebtCards(data.debtCards);
+            if (data.cardData) setCardData(data.cardData);
+            if (data.currentYear) setCurrentYear(data.currentYear);
+            if (data.currentMonth) setCurrentMonth(data.currentMonth);
+            if (data.settings) setSettings({ ...createDefaultSettings(), ...data.settings });
+          } catch (e) { console.error('Failed to load data:', e); }
+        }
+      }, []);
+
+      // Cloud sync: load from Supabase when user signs in
+      useEffect(() => {
+        if (!user) return;
+        (async () => {
+          try {
+            setSyncStatus('syncing');
+            const cloudData = await loadFromSupabase(user.id);
+            if (cloudData) {
+              // Merge: cloud data takes priority
+              if (cloudData.years) {
+                Object.keys(cloudData.years).forEach(year => {
+                  Object.keys(cloudData.years[year] || {}).forEach(month => {
+                    if (cloudData.years[year][month]) {
+                      delete cloudData.years[year][month].housingBack;
+                      delete cloudData.years[year][month].tthCheckTo;
+                    }
+                  });
+                });
+                setYears(cloudData.years);
+              }
+              if (cloudData.debtCards) setDebtCards(cloudData.debtCards);
+              if (cloudData.cardData) setCardData(cloudData.cardData);
+              if (cloudData.settings) setSettings({ ...createDefaultSettings(), ...cloudData.settings });
+            } else {
+              // No cloud data yet â push local data up
+              const localSaved = localStorage.getItem(STORAGE_KEY);
+              if (localSaved) {
+                const localData = JSON.parse(localSaved);
+                await saveToSupabase(user.id, localData);
+              }
+            }
+            setSyncStatus('synced');
+          } catch (e) {
+            console.error('Cloud sync failed:', e);
+            setSyncStatus('error');
+          }
+        })();
+      }, [user]);
+
+      // Save data: always to localStorage, and to cloud if signed in
+      const saveRef = React.useRef(false);
+      useEffect(() => {
+        const data = { years, debtCards, cardData, currentYear, currentMonth, settings };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+        // Sync to cloud (debounced, skip initial render)
+        if (!saveRef.current) { saveRef.current = true; return; }
+        if (!user) return;
+
+        const timer = setTimeout(async () => {
+          try {
+            setSyncStatus('syncing');
+            await saveToSupabase(user.id, { years, debtCards, cardData, settings });
+            setSyncStatus('synced');
+          } catch (e) {
+            console.error('Cloud save failed:', e);
+            setSyncStatus('error');
+          }
+        }, 2000); // 2-second debounce
+
+        return () => clearTimeout(timer);
+      }, [years, debtCards, cardData, currentYear, currentMonth, settings, user]);
+
+      // Merge loaded month data with defaults so new fields get populated
+      const monthData = { ...createDefaultMonth(), ...(years[currentYear]?.[currentMonth] || {}) };
+
+      const updateMonthData = (field, value) => {
+        // Handle arrays (like incomeStreams) without parseFloat
+        const processedValue = Array.isArray(value) ? value : (parseFloat(value) || 0);
+        setYears(prev => ({
+          ...prev,
+          [currentYear]: { ...prev[currentYear], [currentMonth]: { ...prev[currentYear]?.[currentMonth], [field]: processedValue } }
+        }));
+      };
+
+      const updateSettings = (field, value) => {
+        // Handle arrays (like incomeStreams) without parseFloat
+        if (Array.isArray(value)) {
+          setSettings(prev => ({ ...prev, [field]: value }));
+        } else {
+          setSettings(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+        }
+
+        // When Annual Housing Allowance changes, clear housingBack and tthCheckTo
+        // from ALL months so they recalculate based on new value
+        if (field === 'annualHousingAllowance') {
+          setYears(prev => {
+            const updated = { ...prev };
+            Object.keys(updated).forEach(year => {
+              Object.keys(updated[year] || {}).forEach(month => {
+                if (updated[year][month]) {
+                  const { housingBack, tthCheckTo, ...rest } = updated[year][month];
+                  updated[year][month] = rest;
+                }
+              });
+            });
+            return updated;
+          });
+        }
+      };
+
+      const handleSignIn = () => {
+        sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+      };
+
+      const handleSignOut = async () => {
+        await sb.auth.signOut();
+        setSyncStatus('');
+      };
+
+      const addYear = () => {
+        const newYear = Math.max(...Object.keys(years).map(Number)) + 1;
+        setYears(prev => ({ ...prev, [newYear]: createDefaultYear() }));
+        setCurrentYear(newYear);
+      };
+
+      const selectMonth = (month) => {
+        setCurrentMonth(month);
+        setIsAnnualView(false);
+      };
+
+      const selectAnnual = () => {
+        setIsAnnualView(true);
+      };
+
+      const exportJSON = () => {
+        const data = { years, debtCards, cardData, settings, exportDate: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `finance_tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+      };
+
+      const importJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.years) setYears(data.years);
+            if (data.debtCards) setDebtCards(data.debtCards);
+            if (data.cardData) setCardData(data.cardData);
+            if (data.settings) setSettings({ ...createDefaultSettings(), ...data.settings });
+            alert('Data imported successfully!');
+          } catch (e) { alert('Failed to import data: ' + e.message); }
+        };
+        reader.readAsText(file);
+      };
+
+      // Calculate income from streams (per-month data) - needed first for TTH calculations
+      const incomeStreams = monthData.incomeStreams || [];
+      const w2Income = incomeStreams.filter(s => s.type === 'w2').reduce((sum, s) => sum + (s.amount || 0), 0);
+      const income1099 = incomeStreams.filter(s => s.type === '1099').reduce((sum, s) => sum + (s.amount || 0), 0);
+      const gross = w2Income + income1099;
+
+      // Per-month TTH transactions - use ?? to allow 0 as valid value
+      const tthAvailableFunds = monthData.tthAvailableFunds ?? 1000;  // Available funds inside TTH
+      const tithe = gross * 0.1;
+      const additionalTithe = Math.max(0, tithe - tthAvailableFunds);  // Uses available funds
+
+      // Housing back and check to TTH default to calculated values from annual housing allowance
+      const defaultHousingBack = Math.round(settings.annualHousingAllowance / 12);
+      const housingBack = monthData.housingBack ?? defaultHousingBack;
+      const defaultCheckToTTH = Math.round(housingBack + additionalTithe);
+      const tthCheckTo = monthData.tthCheckTo ?? defaultCheckToTTH;
+      const donationToTTH = tthCheckTo;  // Actual check written to TTH
+      const netCash = gross - additionalTithe;
+      const taxInfo = calculateTaxes(gross, settings.annualHousingAllowance, w2Income, income1099);
+      const taxSetAside = taxInfo.totalMonthlyTax;
+      const erikIRA = settings.erikIRA;
+      const betsyIRA = settings.betsyIRA || 0;
+      const bitcoin = settings.bitcoin || 146;
+      const bills = monthData.monthlyBills || 0;
+      const availableForDebt = netCash - taxSetAside - erikIRA - betsyIRA - bitcoin - bills;
+      const actualDebtPayment = monthData.actualDebtPayment || 0;
+      const discretionary = availableForDebt - actualDebtPayment;
+
+      // Calculate annual totals (sum across all months for per-month data)
+      const getAnnualTotals = () => {
+        const yearData = years[currentYear] || {};
+
+        let totals = {
+          gross: 0,
+          tithe: 0,
+          additionalTithe: 0,
+          donation: 0,
+          housingBack: 0,
+          netCash: 0,
+          tax: 0,
+          erikIRA: settings.erikIRA * 12,
+          betsyIRA: (settings.betsyIRA || 0) * 12,
+          bitcoin: (settings.bitcoin || 146) * 12,
+          bills: 0,
+          debtPayment: 0,
+          discretionary: 0
+        };
+
+        // Sum per-month data across all months
+        MONTHS.forEach(month => {
+          const m = { ...createDefaultMonth(), ...(yearData[month] || {}) };
+          const mStreams = m.incomeStreams || [];
+          const mGross = mStreams.reduce((sum, s) => sum + (s.amount || 0), 0);
+          const mTithe = mGross * 0.1;
+          const mTthAvailable = m.tthAvailableFunds ?? 1000;  // Use ?? to allow 0 as valid value
+          const mAddT = Math.max(0, mTithe - mTthAvailable);  // Uses available funds
+          // Calculate defaults for housing back and check to TTH (rounded to whole dollars)
+          const mDefaultHousingBack = Math.round(settings.annualHousingAllowance / 12);
+          const mHousingBack = m.housingBack ?? mDefaultHousingBack;
+          const mDefaultCheckTo = Math.round(mHousingBack + mAddT);
+          const mTthCheckTo = m.tthCheckTo ?? mDefaultCheckTo;
+          const mNet = mGross - mAddT;
+          const mTaxInfo = calculateTaxes(mGross, settings.annualHousingAllowance,
+            mStreams.filter(s => s.type === 'w2').reduce((sum, s) => sum + (s.amount || 0), 0),
+            mStreams.filter(s => s.type === '1099').reduce((sum, s) => sum + (s.amount || 0), 0));
+
+          totals.gross += mGross;
+          totals.tithe += mTithe;
+          totals.additionalTithe += mAddT;
+          totals.donation += mTthCheckTo;
+          totals.housingBack += mHousingBack;
+          totals.netCash += mNet;
+          totals.tax += mTaxInfo.totalMonthlyTax;
+          totals.bills += m.monthlyBills || 0;
+          totals.debtPayment += m.actualDebtPayment || 0;
+        });
+
+        totals.discretionary = totals.netCash - totals.tax - totals.erikIRA - totals.betsyIRA - totals.bitcoin - totals.bills - totals.debtPayment;
+        return totals;
+      };
+
+      const getAnnualCardTotals = () => {
+        let totals = { purchases: 0, fees: 0, payments: 0 };
+        let byCard = {};
+
+        debtCards.forEach(card => {
+          byCard[card.id] = { purchases: 0, fees: 0, payments: 0, name: card.name };
+        });
+
+        MONTHS.forEach(month => {
+          const key = `${currentYear}-${month}`;
+          debtCards.forEach(card => {
+            const data = cardData[key]?.[card.id] || {};
+            totals.purchases += data.purchases || 0;
+            totals.fees += data.fees || 0;
+            totals.payments += data.payments || 0;
+            byCard[card.id].purchases += data.purchases || 0;
+            byCard[card.id].fees += data.fees || 0;
+            byCard[card.id].payments += data.payments || 0;
+          });
+        });
+
+        return { totals, byCard };
+      };
+
+      const tabs = ['TTH Calculator', 'Money at Home', 'Credit Cards', 'Taxes', 'Settings'];
+
+      return (
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+            <div>
+              <h1 style={{ fontSize: '28px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>Monthly Bookkeeper</h1>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: 0 }}>Monthly finances, TTH routing, and debt payoff</p>
+            </div>
+            {/* Auth controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {syncStatus === 'synced' && <span style={{ color: 'var(--positive-dark)', fontSize: '12px' }}>âï¸ Synced</span>}
+              {syncStatus === 'syncing' && <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Syncing...</span>}
+              {syncStatus === 'error' && <span style={{ color: 'var(--negative)', fontSize: '12px' }}>Sync error</span>}
+              {user ? (
+                <button onClick={handleSignOut} className="btn btn-secondary" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                  Sign Out
+                </button>
+              ) : (
+                <button onClick={handleSignIn} className="btn" style={{ background: 'var(--accent)', color: 'white', fontSize: '12px', padding: '6px 12px' }}>
+                  Sign in with Google
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Year and Month Navigation */}
+          <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <select value={currentYear} onChange={(e) => setCurrentYear(parseInt(e.target.value))} style={{ padding: '10px 14px', fontSize: '14px', fontWeight: '500' }}>
+                {Object.keys(years).sort().map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button onClick={addYear} className="btn btn-secondary">+ Year</button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {MONTHS.map(m => (
+                <button
+                  key={m}
+                  onClick={() => selectMonth(m)}
+                  className={!isAnnualView && currentMonth === m ? 'month-active' : 'month-inactive'}
+                  style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  {m.slice(0, 3)}
+                </button>
+              ))}
+              <button
+                onClick={selectAnnual}
+                className={isAnnualView ? 'month-annual' : 'month-inactive'}
+                style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                ð Annual
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="tab-bar" style={{ display: 'flex', gap: '4px', marginBottom: '24px' }}>
+            {tabs.map((tab, i) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(i)}
+                className={activeTab === i ? 'tab-active' : 'tab-inactive'}
+                style={{ flex: 1, padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          {isAnnualView ? (
+            <AnnualSummary
+              activeTab={activeTab}
+              currentYear={currentYear}
+              annualTotals={getAnnualTotals()}
+              annualCardTotals={getAnnualCardTotals()}
+              settings={settings}
+              debtCards={debtCards}
+              cardData={cardData}
+              years={years}
+            />
+          ) : (
+            <>
+              {activeTab === 0 && (
+                <TTHCalculator gross={gross} tithe={tithe} tthAvailableFunds={tthAvailableFunds} tthCheckTo={tthCheckTo} additionalTithe={additionalTithe} donationToTTH={donationToTTH} housingBack={housingBack} netCash={netCash} annualHousingAllowance={settings.annualHousingAllowance} />
+              )}
+              {activeTab === 1 && (
+                <MoneyAtHome gross={gross} netCash={netCash} taxInfo={taxInfo} erikIRA={erikIRA} betsyIRA={betsyIRA} bitcoin={bitcoin} bills={bills} availableForDebt={availableForDebt} actualDebtPayment={actualDebtPayment} discretionary={discretionary} updateMonthData={updateMonthData} monthData={monthData} rothMax={settings.rothMax} betsyIRAMax={settings.betsyIRAMax} />
+              )}
+              {activeTab === 2 && (
+                <CreditCardTracker debtCards={debtCards} setDebtCards={setDebtCards} cardData={cardData} setCardData={setCardData} currentYear={currentYear} currentMonth={currentMonth} years={years} />
+              )}
+              {activeTab === 3 && (
+                <TaxesTab taxInfo={taxInfo} gross={gross} w2Income={w2Income} income1099={income1099} incomeStreams={incomeStreams} settings={settings} />
+              )}
+              {activeTab === 4 && (
+                <SettingsTab settings={settings} updateSettings={updateSettings} monthData={monthData} updateMonthData={updateMonthData} currentMonth={currentMonth} taxInfo={taxInfo} gross={gross} />
+              )}
+            </>
+          )}
+
+          {/* Export/Import */}
+          <div className="card" style={{ padding: '20px', marginTop: '24px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              <button onClick={exportJSON} className="btn btn-secondary">Export Backup</button>
+              <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+                Import Backup
+                <input type="file" accept=".json" onChange={importJSON} style={{ display: 'none' }} />
+              </label>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>Data auto-saves to browser. Export backup for safekeeping.</p>
+          </div>
+        </div>
+      );
+    }
+
+    function AnnualSummary({ activeTab, currentYear, annualTotals, annualCardTotals, settings, debtCards, cardData, years }) {
+      const t = annualTotals;
+      const c = annualCardTotals;
+
+      // Build monthly trend data for cards
+      const getMonthlyCardData = () => {
+        return MONTHS.map(month => {
+          const key = `${currentYear}-${month}`;
+          let monthFees = 0;
+          let monthPurchases = 0;
+          const byCard = {};
+
+          debtCards.forEach((card, i) => {
+            const data = cardData[key]?.[card.id] || {};
+            byCard[card.id] = { fees: data.fees || 0, purchases: data.purchases || 0 };
+            monthFees += data.fees || 0;
+            monthPurchases += data.purchases || 0;
+          });
+
+          return { month: month.slice(0, 3), totalFees: monthFees, totalPurchases: monthPurchases, byCard };
+        });
+      };
+
+      const monthlyCardData = getMonthlyCardData();
+      const maxFees = Math.max(...monthlyCardData.map(m => m.totalFees), 1);
+
+      // Monthly income trend
+      const getMonthlyIncome = () => {
+        return MONTHS.map(month => {
+          const m = { ...createDefaultMonth(), ...(years[currentYear]?.[month] || {}) };
+          const streams = m.incomeStreams || [];
+          const gross = streams.reduce((sum, s) => sum + (s.amount || 0), 0);
+          return { month: month.slice(0, 3), gross };
+        });
+      };
+
+      const monthlyIncome = getMonthlyIncome();
+      const maxIncome = Math.max(...monthlyIncome.map(m => m.gross), 1);
+
+      if (activeTab === 0) {
+        // TTH Annual Summary
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} TTH Summary</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                <Stat label="Total Gross" value={formatCurrency(t.gross)} />
+                <Stat label="Total Tithe" value={formatCurrency(t.tithe)} />
+                <Stat label="Total Donation to TTH" value={formatCurrency(t.donation)} />
+                <Stat label="Total Housing (back)" value={formatCurrency(t.housingBack)} />
+                <Stat label="Total Net Cash" value={formatCurrency(t.netCash)} />
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Gross Income Trend</label>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '150px', marginTop: '16px' }}>
+                {monthlyIncome.map((m, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '9px', color: 'var(--accent)', fontWeight: '600' }}>{m.gross > 0 ? formatCurrency(m.gross) : ''}</span>
+                    <div className="chart-bar" style={{ width: '100%', height: `${(m.gross / maxIncome) * 100}px`, minHeight: m.gross > 0 ? '4px' : '0', background: 'var(--accent)' }} />
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{m.month}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (activeTab === 1) {
+        // Money at Home Annual Summary
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} Money at Home Summary</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                <Stat label="Total Net Cash" value={formatCurrency(t.netCash)} />
+                <Stat label="Total Tax Set-Aside" value={formatCurrency(t.tax)} />
+                <Stat label="Total Erik IRA" value={formatCurrency(t.erikIRA)} />
+                <Stat label="Total Betsy IRA" value={formatCurrency(t.betsyIRA)} />
+                <Stat label="Total Bitcoin" value={formatCurrency(t.bitcoin)} />
+                <Stat label="Total Bills" value={formatCurrency(t.bills)} />
+                <Stat label="Total Debt Payments" value={formatCurrency(t.debtPayment)} />
+                <Stat label="Total Discretionary" value={formatCurrency(t.discretionary)} negative={t.discretionary < 0} />
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (activeTab === 2) {
+        // Credit Cards Annual Summary
+        const donutData = [
+          { label: 'Spending', value: c.totals.purchases, color: 'var(--accent)' },
+          { label: 'Fees', value: c.totals.fees, color: 'var(--negative)' }
+        ];
+
+        const feesByCard = debtCards.map((card, i) => ({
+          label: card.name,
+          value: c.byCard[card.id]?.fees || 0,
+          color: CARD_COLORS[i]
+        }));
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} Credit Card Summary</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                <Stat label="Total Spending" value={formatCurrency(c.totals.purchases)} />
+                <Stat label="Total Fees Paid" value={formatCurrencyDecimal(c.totals.fees)} negative />
+                <Stat label="Total Payments" value={formatCurrency(c.totals.payments)} />
+                <Stat label="Net (Payments - Purchases)" value={formatCurrency(c.totals.payments - c.totals.purchases)} negative={c.totals.payments < c.totals.purchases} />
+              </div>
+            </div>
+
+            {/* Donut: Spending vs Fees */}
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Spending vs Fees</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '40px', marginTop: '20px', flexWrap: 'wrap' }}>
+                <DonutChart data={donutData} size={180} strokeWidth={35} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {donutData.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: d.color }} />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{d.label}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatCurrency(d.value)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Fees by Card Donut */}
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fees by Card</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '40px', marginTop: '20px', flexWrap: 'wrap' }}>
+                <DonutChart data={feesByCard.filter(d => d.value > 0)} size={180} strokeWidth={35} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {feesByCard.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: d.color }} />
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>{d.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{formatCurrencyDecimal(d.value)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Stacked Bar: Monthly Fees Trend */}
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Fees Trend</label>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '160px', marginTop: '16px' }}>
+                {monthlyCardData.map((m, mi) => (
+                  <div key={mi} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column-reverse', width: '100%' }}>
+                      {debtCards.map((card, ci) => {
+                        const fees = m.byCard[card.id]?.fees || 0;
+                        const height = maxFees > 0 ? (fees / maxFees) * 100 : 0;
+                        return (
+                          <div
+                            key={ci}
+                            style={{
+                              width: '100%',
+                              height: `${height}px`,
+                              background: CARD_COLORS[ci],
+                              borderRadius: ci === debtCards.length - 1 ? '4px 4px 0 0' : '0'
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>{m.month}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
+                {debtCards.map((card, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: CARD_COLORS[i] }} />
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{card.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (activeTab === 3) {
+        return (
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} Tax Summary</label>
+            <p style={{ color: 'var(--text-muted)', marginTop: '16px' }}>Tax calculations are based on your settings. View monthly for full breakdown.</p>
+          </div>
+        );
+      }
+
+      if (activeTab === 4) {
+        return (
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} Settings Summary</label>
+            <p style={{ color: 'var(--text-muted)', marginTop: '16px' }}>Settings are the same for all months. Switch to a monthly view to adjust settings.</p>
+          </div>
+        );
+      }
+
+      return null;
+    }
+
+    function TTHCalculator({ gross, tithe, tthAvailableFunds, tthCheckTo, additionalTithe, donationToTTH, housingBack, netCash, annualHousingAllowance }) {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+          <div className="card" style={{ padding: '24px', background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gross Income</label>
+            <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '12px' }}>{formatCurrency(gross)}</div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Monthly gross from Settings</p>
+          </div>
+
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>TTH Routing</label>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Row label="Tithe (10%)" value={formatCurrency(tithe)} />
+              <Row label="TTH Available Funds" value={formatCurrency(tthAvailableFunds)} muted />
+              <Row label="Additional Tithe" value={formatCurrency(additionalTithe)} />
+              <div className="bg-accent-subtle" style={{ borderRadius: '10px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-secondary)' }}>Check to TTH</span>
+                <span style={{ fontWeight: '600', color: 'var(--accent)' }}>{formatCurrency(tthCheckTo)}</span>
+              </div>
+              <Row label="Housing Allowance (back)" value={`+${formatCurrency(housingBack)}`} positive />
+              <div className="bg-positive-subtle" style={{ borderRadius: '10px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-secondary)' }}>Net Cash</span>
+                <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(netCash)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '16px' }}>
+              <Stat label="Annual Housing (Tax)" value={formatCurrency(annualHousingAllowance)} />
+              <Stat label="TTH Available" value={formatCurrency(tthAvailableFunds)} />
+              <Stat label="Housing Back" value={formatCurrency(housingBack)} />
+              <Stat label="Check to TTH" value={formatCurrency(tthCheckTo)} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function MoneyAtHome({ gross, netCash, taxInfo, erikIRA, betsyIRA, bitcoin, bills, availableForDebt, actualDebtPayment, discretionary, updateMonthData, monthData, rothMax, betsyIRAMax }) {
+      // Calculate Bitcoin allocation based on IRA max (Bitcoin = 20% of total portfolio)
+      // IRA = 80% (4 segments), Bitcoin = 20% (1 segment)
+      // So Bitcoin = IRA / 4
+      const erikBitcoinFromRoth = Math.round((rothMax / 4) / 12);  // Erik's monthly BTC amount
+      const betsyBitcoinFromIRA = Math.round((betsyIRAMax / 4) / 12);  // Betsy's monthly BTC amount
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="card" style={{ padding: '24px', background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>Net Cash Available</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '2px' }}>From TTH Calculator</p>
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCurrency(netCash)}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            <div className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ðµ</div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Tax Set-Aside</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{(taxInfo.effectiveRate * 100).toFixed(1)}% effective</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: '#D97706' }}>{formatCurrency(taxInfo.totalMonthlyTax)}</div>
+              <div style={{ marginTop: '12px', padding: '10px', background: 'var(--bg-subtle)', borderRadius: '8px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                  <span>SE Tax (14.1%):</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{formatCurrency(taxInfo.monthlySETax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <span>Income ({(taxInfo.currentBracket * 100).toFixed(0)}% bracket):</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{formatCurrency(taxInfo.monthlyIncomeTax)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(90, 200, 200, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð</div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Erik's Roth IRA</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>80% of portfolio (4 Ã 20%)</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(erikIRA)}</div>
+              <div style={{ marginTop: '12px', padding: '10px', background: 'var(--bg-subtle)', borderRadius: '8px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderRadius: '4px', background: rothMax === 7000 ? 'rgba(88, 86, 214, 0.1)' : 'transparent' }}>
+                  <span style={{ color: rothMax === 7000 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: rothMax === 7000 ? '600' : '400' }}>Under 50:</span>
+                  <span style={{ color: rothMax === 7000 ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: rothMax === 7000 ? '600' : '400' }}>$7,000/yr <span style={{ color: 'var(--text-subtle)' }}>($583/mo)</span></span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', marginTop: '4px', borderRadius: '4px', background: rothMax === 8000 ? 'rgba(88, 86, 214, 0.1)' : 'transparent' }}>
+                  <span style={{ color: rothMax === 8000 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: rothMax === 8000 ? '600' : '400' }}>Age 50+:</span>
+                  <span style={{ color: rothMax === 8000 ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: rothMax === 8000 ? '600' : '400' }}>$8,000/yr <span style={{ color: 'var(--text-subtle)' }}>($667/mo)</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð</div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Betsy's Traditional IRA</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>401(k) Rollover â¢ From Settings</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: '#A855F7' }}>{formatCurrency(betsyIRA)}</div>
+              <div style={{ marginTop: '12px', padding: '10px', background: 'var(--bg-subtle)', borderRadius: '8px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderRadius: '4px', background: betsyIRAMax === 7000 ? 'rgba(168, 85, 247, 0.1)' : 'transparent' }}>
+                  <span style={{ color: betsyIRAMax === 7000 ? '#A855F7' : 'var(--text-muted)', fontWeight: betsyIRAMax === 7000 ? '600' : '400' }}>Under 50:</span>
+                  <span style={{ color: betsyIRAMax === 7000 ? '#A855F7' : 'var(--text-secondary)', fontWeight: betsyIRAMax === 7000 ? '600' : '400' }}>$7,000/yr <span style={{ color: 'var(--text-subtle)' }}>($583/mo)</span></span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', marginTop: '4px', borderRadius: '4px', background: betsyIRAMax === 8000 ? 'rgba(168, 85, 247, 0.1)' : 'transparent' }}>
+                  <span style={{ color: betsyIRAMax === 8000 ? '#A855F7' : 'var(--text-muted)', fontWeight: betsyIRAMax === 8000 ? '600' : '400' }}>Age 50+:</span>
+                  <span style={{ color: betsyIRAMax === 8000 ? '#A855F7' : 'var(--text-secondary)', fontWeight: betsyIRAMax === 8000 ? '600' : '400' }}>$8,000/yr <span style={{ color: 'var(--text-subtle)' }}>($667/mo)</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(247, 147, 26, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>â¿</div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Bitcoin</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>From Settings</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: '#F7931A' }}>{formatCurrency(bitcoin)}</div>
+              <div style={{ marginTop: '10px', padding: '10px', background: 'var(--bg-subtle)', borderRadius: '8px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  <span>Erik's 20% (from Roth):</span>
+                  <span style={{ color: '#F7931A', fontWeight: '600' }}>${erikBitcoinFromRoth}/mo</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                  <span>Betsy's 20% (from Trad IRA):</span>
+                  <span style={{ color: '#F7931A', fontWeight: '600' }}>${betsyBitcoinFromIRA}/mo</span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border)', marginTop: '8px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontWeight: '600' }}>Combined:</span>
+                  <span style={{ color: '#F7931A', fontWeight: '700' }}>${erikBitcoinFromRoth + betsyBitcoinFromIRA}/mo</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð </div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Bills & Living</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>From Settings</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-secondary)' }}>{formatCurrency(bills)}</div>
+            </div>
+
+            <div className="card" style={{ padding: '20px', background: availableForDebt < 0 ? 'rgba(229, 115, 115, 0.08)' : 'rgba(90, 200, 200, 0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: availableForDebt < 0 ? 'rgba(229, 115, 115, 0.2)' : 'rgba(90, 200, 200, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð°</div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Available for Debt</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>After allocations</p>
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700', color: availableForDebt < 0 ? 'var(--negative)' : 'var(--positive-dark)' }}>{formatCurrency(availableForDebt)}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actual Debt Payment</label>
+              <div style={{ position: 'relative', marginTop: '12px' }}>
+                <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '18px' }}>$</span>
+                <input type="number" value={monthData.actualDebtPayment || ''} onChange={(e) => updateMonthData('actualDebtPayment', e.target.value)} placeholder="0" style={{ width: '100%', paddingLeft: '40px', paddingRight: '16px', paddingTop: '14px', paddingBottom: '14px', fontSize: '26px', fontWeight: '600' }} />
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>Amount paid toward debt this month</p>
+            </div>
+
+            <div className="card" style={{ padding: '24px', background: discretionary < 0 ? 'rgba(229, 115, 115, 0.08)' : 'rgba(90, 200, 200, 0.08)' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Discretionary Cash</label>
+              <div style={{ fontSize: '32px', fontWeight: '700', marginTop: '12px', color: discretionary < 0 ? 'var(--negative)' : 'var(--positive-dark)' }}>{formatCurrency(discretionary)}</div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>{discretionary < 0 ? 'Over budget this month' : 'Remaining after expenses'}</p>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Summary</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '16px' }}>
+              <Stat label="Gross Income" value={formatCurrency(gross)} />
+              <Stat label="Net Cash" value={formatCurrency(netCash)} />
+              <Stat label="Total Committed" value={formatCurrency(netCash - availableForDebt)} />
+              <Stat label="To Debt + Disc." value={formatCurrency(availableForDebt)} negative={availableForDebt < 0} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CreditCardTracker({ debtCards, setDebtCards, cardData, setCardData, currentYear, currentMonth, years }) {
+      const dataKey = `${currentYear}-${currentMonth}`;
+
+      const updateCard = (id, field, value) => {
+        setDebtCards(prev => prev.map(c => c.id === id ? { ...c, [field]: field === 'name' ? value : (parseFloat(value) || 0) } : c));
+      };
+
+      const updateCardData = (cardId, field, value) => {
+        setCardData(prev => ({
+          ...prev,
+          [dataKey]: {
+            ...prev[dataKey],
+            [cardId]: {
+              ...prev[dataKey]?.[cardId],
+              [field]: parseFloat(value) || 0
+            }
+          }
+        }));
+      };
+
+      const getCardMonthData = (cardId) => cardData[dataKey]?.[cardId] || {};
+
+      const getTotalFees = (cardId) => {
+        let total = 0;
+        Object.keys(cardData).forEach(key => {
+          if (key.startsWith(`${currentYear}-`)) {
+            total += cardData[key]?.[cardId]?.fees || 0;
+          }
+        });
+        return total;
+      };
+
+      const getTotalPayments = (cardId) => {
+        let total = 0;
+        Object.keys(cardData).forEach(key => {
+          if (key.startsWith(`${currentYear}-`)) {
+            total += cardData[key]?.[cardId]?.payments || 0;
+          }
+        });
+        return total;
+      };
+
+      const getTotalPurchases = (cardId) => {
+        let total = 0;
+        Object.keys(cardData).forEach(key => {
+          if (key.startsWith(`${currentYear}-`)) {
+            total += cardData[key]?.[cardId]?.purchases || 0;
+          }
+        });
+        return total;
+      };
+
+      // Get fee history for a card
+      const getFeeHistory = (cardId) => {
+        return MONTHS.map(month => {
+          const key = `${currentYear}-${month}`;
+          return { month: month.slice(0, 3), fees: cardData[key]?.[cardId]?.fees || 0 };
+        });
+      };
+
+      // Aggregate totals
+      const totalFees = debtCards.reduce((sum, c) => sum + getTotalFees(c.id), 0);
+      const totalPayments = debtCards.reduce((sum, c) => sum + getTotalPayments(c.id), 0);
+      const totalPurchases = debtCards.reduce((sum, c) => sum + getTotalPurchases(c.id), 0);
+
+      // Donut data: Spending vs Fees (YTD)
+      const donutDataYTD = [
+        { label: 'Spending', value: totalPurchases, color: 'var(--accent)' },
+        { label: 'Fees', value: totalFees, color: 'var(--negative)' }
+      ];
+
+      // Monthly spending and fees for current month
+      const monthlySpending = debtCards.reduce((sum, c) => sum + (cardData[dataKey]?.[c.id]?.purchases || 0), 0);
+      const monthlyFees = debtCards.reduce((sum, c) => sum + (cardData[dataKey]?.[c.id]?.fees || 0), 0);
+
+      // Donut data: Spending vs Fees (Current Month)
+      const donutDataMonthly = [
+        { label: 'Spending', value: monthlySpending, color: 'var(--accent)' },
+        { label: 'Fees', value: monthlyFees, color: 'var(--negative)' }
+      ];
+
+      // Stacked bar data
+      const monthlyData = MONTHS.map(month => {
+        const key = `${currentYear}-${month}`;
+        const byCard = {};
+        let totalMonthFees = 0;
+        debtCards.forEach(card => {
+          const fees = cardData[key]?.[card.id]?.fees || 0;
+          byCard[card.id] = fees;
+          totalMonthFees += fees;
+        });
+        return { month: month.slice(0, 3), byCard, total: totalMonthFees };
+      });
+
+      const maxMonthFees = Math.max(...monthlyData.map(m => m.total), 1);
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Overall Summary with YTD Donut */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentYear} YTD Summary</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '24px', marginTop: '16px', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Total Spending</p>
+                  <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--accent)', margin: '4px 0 0 0' }}>{formatCurrency(totalPurchases)}</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Total Fees</p>
+                  <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--negative)', margin: '4px 0 0 0' }}>{formatCurrencyDecimal(totalFees)}</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Total Payments</p>
+                  <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--positive-dark)', margin: '4px 0 0 0' }}>{formatCurrency(totalPayments)}</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Net Flow</p>
+                  <p style={{ fontSize: '20px', fontWeight: '700', color: totalPayments >= totalPurchases ? 'var(--positive-dark)' : 'var(--negative)', margin: '4px 0 0 0' }}>{formatCurrency(totalPayments - totalPurchases)}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <DonutChart data={donutDataYTD} size={160} strokeWidth={30} />
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {donutDataYTD.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: d.color }} />
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{d.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            {/* Donut: Spending vs Fees (Monthly) */}
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentMonth} Spending vs Fees</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginTop: '20px' }}>
+                <DonutChart data={donutDataMonthly} size={150} strokeWidth={30} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {donutDataMonthly.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: d.color }} />
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>{d.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{formatCurrency(d.value)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Stacked Bar: Monthly Fees */}
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Fees Trend</label>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '120px', marginTop: '16px' }}>
+                {monthlyData.map((m, mi) => (
+                  <div key={mi} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column-reverse', width: '100%' }}>
+                      {debtCards.map((card, ci) => {
+                        const fees = m.byCard[card.id] || 0;
+                        const height = maxMonthFees > 0 ? (fees / maxMonthFees) * 80 : 0;
+                        return <div key={ci} style={{ width: '100%', height: `${height}px`, background: CARD_COLORS[ci], borderRadius: ci === debtCards.length - 1 ? '3px 3px 0 0' : '0' }} />;
+                      })}
+                    </div>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '4px' }}>{m.month}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
+                {debtCards.map((card, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: CARD_COLORS[i] }} />
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{card.name.slice(0, 15)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            {debtCards.map((card, cardIndex) => {
+              const monthData = getCardMonthData(card.id);
+              const prevBalance = monthData.prevBalance || 0;
+              const payments = monthData.payments || 0;
+              const purchases = monthData.purchases || 0;
+              const fees = monthData.fees || 0;
+              const newBalance = prevBalance + purchases + fees - payments;
+
+              const ytdFees = getTotalFees(card.id);
+              const feeHistory = getFeeHistory(card.id);
+              const maxFee = Math.max(...feeHistory.map(f => f.fees), 1);
+
+              return (
+                <div key={card.id} className="card" style={{ padding: '20px', borderLeft: `4px solid ${CARD_COLORS[cardIndex]}` }}>
+                  <input
+                    type="text"
+                    value={card.name}
+                    onChange={(e) => updateCard(card.id, 'name', e.target.value)}
+                    style={{ fontSize: '16px', fontWeight: '600', background: 'transparent', border: 'none', borderBottom: '1px solid transparent', width: '100%', marginBottom: '16px', paddingBottom: '4px' }}
+                    onFocus={(e) => e.target.style.borderBottomColor = 'var(--border)'}
+                    onBlur={(e) => e.target.style.borderBottomColor = 'transparent'}
+                  />
+
+                  {/* Monthly Entry */}
+                  <div style={{ background: 'var(--bg-subtle)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent)', marginBottom: '12px' }}>{currentMonth} Statement</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Previous Balance</label>
+                        <div style={{ position: 'relative', marginTop: '4px' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '11px' }}>$</span>
+                          <input type="number" value={prevBalance || ''} onChange={(e) => updateCardData(card.id, 'prevBalance', e.target.value)} placeholder="0" style={{ width: '100%', paddingLeft: '22px', paddingRight: '6px', paddingTop: '8px', paddingBottom: '8px', fontSize: '14px', fontWeight: '500', background: 'white' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Payments & Credits</label>
+                        <div style={{ position: 'relative', marginTop: '4px' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '11px' }}>$</span>
+                          <input type="number" value={payments || ''} onChange={(e) => updateCardData(card.id, 'payments', e.target.value)} placeholder="0" style={{ width: '100%', paddingLeft: '22px', paddingRight: '6px', paddingTop: '8px', paddingBottom: '8px', fontSize: '14px', fontWeight: '500', background: 'white' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Purchases</label>
+                        <div style={{ position: 'relative', marginTop: '4px' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '11px' }}>$</span>
+                          <input type="number" value={purchases || ''} onChange={(e) => updateCardData(card.id, 'purchases', e.target.value)} placeholder="0" style={{ width: '100%', paddingLeft: '22px', paddingRight: '6px', paddingTop: '8px', paddingBottom: '8px', fontSize: '14px', fontWeight: '500', background: 'white' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Fees Charged</label>
+                        <div style={{ position: 'relative', marginTop: '4px' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '11px' }}>$</span>
+                          <input type="number" step="0.01" value={fees || ''} onChange={(e) => updateCardData(card.id, 'fees', e.target.value)} placeholder="0" style={{ width: '100%', paddingLeft: '22px', paddingRight: '6px', paddingTop: '8px', paddingBottom: '8px', fontSize: '14px', fontWeight: '500', background: 'white' }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Net Change & New Balance */}
+                    {(() => {
+                      const netChange = purchases + fees - payments;
+                      const isIncrease = netChange > 0;
+                      const isDecrease = netChange < 0;
+                      return (
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Net Change</span>
+                            <p style={{ fontSize: '14px', fontWeight: '600', margin: '2px 0 0 0', color: isIncrease ? 'var(--negative)' : isDecrease ? 'var(--positive-dark)' : 'var(--text-muted)' }}>
+                              {isIncrease ? '+' : ''}{formatCurrency(netChange)}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>New Balance</span>
+                            <p style={{ fontSize: '16px', fontWeight: '700', margin: '2px 0 0 0', color: newBalance > 0 ? 'var(--negative)' : 'var(--positive-dark)' }}>{formatCurrency(newBalance)}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* YTD Fees */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>YTD Fees Paid</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--negative)' }}>{formatCurrencyDecimal(ytdFees)}</span>
+                    </div>
+                  </div>
+
+                  {/* Mini Fee Chart */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '40px' }}>
+                    {feeHistory.map((f, i) => (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ width: '100%', height: `${(f.fees / maxFee) * 30}px`, minHeight: f.fees > 0 ? '2px' : '0', background: CARD_COLORS[cardIndex], borderRadius: '2px 2px 0 0' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function TaxesTab({ taxInfo, gross, w2Income, income1099, incomeStreams, settings }) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Income Sources */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Income Sources</label>
+            <div style={{ marginTop: '16px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 0', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Source</th>
+                    <th style={{ textAlign: 'center', padding: '8px 0', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Type</th>
+                    <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Monthly</th>
+                    <th style={{ textAlign: 'right', padding: '8px 0', fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Annual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incomeStreams.map((stream, i) => (
+                    <tr key={stream.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 0', fontSize: '14px', color: 'var(--text-primary)', fontWeight: '500' }}>{stream.title}</td>
+                      <td style={{ padding: '12px 0', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          background: stream.type === 'w2' ? 'rgba(88, 86, 214, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: stream.type === 'w2' ? 'var(--accent)' : '#D97706'
+                        }}>
+                          {stream.type === 'w2' ? 'W-2' : '1099'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 0', textAlign: 'right', fontSize: '14px', color: 'var(--text-secondary)' }}>{formatCurrency(stream.amount)}</td>
+                      <td style={{ padding: '12px 0', textAlign: 'right', fontSize: '14px', color: 'var(--text-secondary)' }}>{formatCurrency(stream.amount * 12)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: 'var(--bg-subtle)' }}>
+                    <td colSpan="2" style={{ padding: '12px 0', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>Monthly Gross Earnings</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCurrency(gross)}</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCurrency(gross * 12)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* Self-Employment Tax */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Self-Employment Tax (14.13%)</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '16px' }}>Ministers pay SE tax on ALL ministerial income (W-2 + 1099)</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div style={{ padding: '16px', background: 'rgba(88, 86, 214, 0.06)', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: '600', margin: 0 }}>W-2 Income SE Tax</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(w2Income)} Ã 14.13%</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--accent)', margin: 0 }}>{formatCurrency(taxInfo.monthlySETaxW2)}/mo</p>
+              </div>
+              <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.06)', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: '#D97706', fontWeight: '600', margin: 0 }}>1099 Income SE Tax</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(income1099)} Ã 14.13%</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#D97706', margin: 0 }}>{formatCurrency(taxInfo.monthlySETax1099)}/mo</p>
+              </div>
+              <div style={{ padding: '16px', background: 'var(--bg-subtle)', borderRadius: '12px', border: '2px solid var(--border)' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', margin: 0 }}>Total SE Tax</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(gross)} Ã 14.13%</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>{formatCurrency(taxInfo.monthlySETax)}/mo</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Income Tax Calculation */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Income Tax Calculation</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '16px' }}>Housing allowance excludes W-2 income from federal income tax</p>
+
+            <div style={{ background: 'var(--bg-subtle)', borderRadius: '12px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Gross Income (Annual)</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.annualGross)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '14px', color: 'var(--positive-dark)' }}>â Housing Allowance (IRC Â§107)</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--positive-dark)' }}>({formatCurrency(settings.annualHousingAllowance)})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>â 50% of SE Tax (Deduction)</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>({formatCurrency(taxInfo.seDeduction)})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>â Standard Deduction (MFJ)</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>({formatCurrency(STANDARD_DEDUCTION_MFJ)})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', marginTop: '4px', background: 'white', borderRadius: '8px', paddingLeft: '12px', paddingRight: '12px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>= Taxable Income</span>
+                <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent)' }}>{formatCurrency(taxInfo.taxableIncome)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', marginTop: '12px' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Income Tax ({(taxInfo.currentBracket * 100).toFixed(0)}% bracket)</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.annualIncomeTax)}/yr â {formatCurrency(taxInfo.monthlyIncomeTax)}/mo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Set-Aside & Quarterly */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Tax Set-Aside</label>
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>SE Tax</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.monthlySETax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Income Tax</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.monthlyIncomeTax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', marginTop: '8px', background: 'rgba(217, 119, 6, 0.1)', borderRadius: '8px', paddingLeft: '12px', paddingRight: '12px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#D97706' }}>Total Monthly</span>
+                  <span style={{ fontSize: '20px', fontWeight: '700', color: '#D97706' }}>{formatCurrency(taxInfo.totalMonthlyTax)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(88, 86, 214, 0.05) 0%, rgba(124, 122, 230, 0.05) 100%)' }}>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quarterly Estimated Payment</label>
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>{formatCurrency(taxInfo.totalMonthlyTax)} Ã 3 months</div>
+                <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent)' }}>{formatCurrency(taxInfo.quarterlyPayment)}</div>
+                <div style={{ marginTop: '16px', padding: '12px', background: 'white', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Due: Apr 15, Jun 15, Sep 15, Jan 15
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Housing Allowance Savings */}
+          <div className="card" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(90, 200, 200, 0.08) 0%, rgba(59, 168, 168, 0.08) 100%)' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Housing Allowance Benefit</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '16px' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Annual Tax Savings (IRC Â§107)</div>
+                <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(taxInfo.housingAllowanceSavings)}</div>
+              </div>
+              <div style={{ padding: '12px 16px', background: 'white', borderRadius: '10px', fontSize: '12px', color: 'var(--text-muted)', maxWidth: '300px' }}>
+                This is how much more you'd pay in income tax without the housing allowance exclusion.
+              </div>
+            </div>
+          </div>
+
+          {/* Dynamic Tax Calculation */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dynamic Tax Calculation</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Taxes auto-calculate based on your monthly gross income</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Current Monthly Gross</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{formatCurrency(gross)}</p>
+              </div>
+              <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Projected Annual</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{formatCurrency(taxInfo.annualGross)}</p>
+              </div>
+              <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Taxable Income</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{formatCurrency(taxInfo.taxableIncome)}</p>
+              </div>
+              <div style={{ background: 'rgba(88, 86, 214, 0.08)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Effective Tax Rate</p>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--accent)', margin: '4px 0 0 0' }}>{(taxInfo.effectiveRate * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Monthly Tax Breakdown</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>SE Tax (14.1%)</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>{formatCurrency(taxInfo.monthlySETax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Income Tax ({(taxInfo.currentBracket * 100).toFixed(0)}%)</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>{formatCurrency(taxInfo.monthlyIncomeTax)}</span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>Total Set-Aside</span>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#D97706' }}>{formatCurrency(taxInfo.totalMonthlyTax)}</span>
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-subtle)', padding: '16px', borderRadius: '12px' }}>
+                <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>2025 MFJ Tax Brackets</p>
+                <table className="tax-table">
+                  <thead><tr><th>Income</th><th>Rate</th></tr></thead>
+                  <tbody>
+                    {TAX_BRACKETS.map((bracket, i) => (
+                      <tr key={i} className={taxInfo.taxableIncome > bracket.min && taxInfo.taxableIncome <= bracket.max ? 'active' : ''}>
+                        <td>{bracket.max === Infinity ? `$${(bracket.min/1000).toFixed(0)}K+` : `$${(bracket.min/1000).toFixed(0)}K-${(bracket.max/1000).toFixed(0)}K`}</td>
+                        <td>{(bracket.rate * 100).toFixed(0)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SettingsTab({ settings, updateSettings, monthData, updateMonthData, currentMonth, taxInfo, gross }) {
+      // Per-month data
+      const incomeStreams = monthData.incomeStreams || [];
+      const totalMonthlyGross = incomeStreams.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+      const updateMonthlyField = (field, value) => {
+        // For arrays, don't use parseFloat
+        if (Array.isArray(value)) {
+          updateMonthData(field, value);
+        } else {
+          updateMonthData(field, parseFloat(value) || 0);
+        }
+      };
+
+      const addIncomeStream = () => {
+        const newId = Math.max(0, ...incomeStreams.map(s => s.id)) + 1;
+        updateMonthlyField('incomeStreams', [...incomeStreams, { id: newId, title: 'New Income', type: '1099', amount: 0 }]);
+      };
+
+      const updateIncomeStream = (id, field, value) => {
+        updateMonthlyField('incomeStreams', incomeStreams.map(s =>
+          s.id === id ? { ...s, [field]: field === 'amount' ? parseFloat(value) || 0 : value } : s
+        ));
+      };
+
+      const removeIncomeStream = (id) => {
+        updateMonthlyField('incomeStreams', incomeStreams.filter(s => s.id !== id));
+      };
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Income Streams - Per Month */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentMonth} Income</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Enter this month's income sources (W-2 or 1099)</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {incomeStreams.map((stream, i) => (
+                <div key={stream.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 140px 40px', gap: '12px', alignItems: 'center', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '10px' }}>
+                  <input
+                    type="text"
+                    value={stream.title}
+                    onChange={(e) => updateIncomeStream(stream.id, 'title', e.target.value)}
+                    placeholder="Income source name"
+                    style={{ padding: '10px 12px', fontSize: '14px', fontWeight: '500' }}
+                  />
+                  <select
+                    value={stream.type}
+                    onChange={(e) => updateIncomeStream(stream.id, 'type', e.target.value)}
+                    style={{ padding: '10px 12px', fontSize: '14px', background: stream.type === 'w2' ? 'rgba(88, 86, 214, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: stream.type === 'w2' ? 'var(--accent)' : '#D97706', fontWeight: '600', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                  >
+                    <option value="w2">W-2</option>
+                    <option value="1099">1099</option>
+                  </select>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>$</span>
+                    <input
+                      type="number"
+                      value={stream.amount || ''}
+                      onChange={(e) => updateIncomeStream(stream.id, 'amount', e.target.value)}
+                      placeholder="0"
+                      style={{ width: '100%', paddingLeft: '28px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px', fontSize: '14px', fontWeight: '600' }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeIncomeStream(stream.id)}
+                    style={{ width: '36px', height: '36px', borderRadius: '8px', border: 'none', background: 'rgba(229, 115, 115, 0.1)', color: 'var(--negative)', cursor: 'pointer', fontSize: '18px' }}
+                  >Ã</button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={addIncomeStream}
+              style={{ marginTop: '12px', padding: '12px 20px', background: 'var(--bg-subtle)', border: '2px dashed var(--border)', borderRadius: '10px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', cursor: 'pointer', width: '100%' }}
+            >+ Add Income Stream</button>
+
+            <div style={{ marginTop: '20px', padding: '16px', background: 'linear-gradient(135deg, rgba(90, 200, 200, 0.08) 0%, rgba(59, 168, 168, 0.08) 100%)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Monthly Gross Earnings</span>
+              <span style={{ fontSize: '24px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(totalMonthlyGross)}</span>
+            </div>
+          </div>
+
+          {/* Take the Hill - Consolidated */}
+          {(() => {
+            // Calculate TTH values - Housing Back defaults to Annual / 12
+            // Use ?? (nullish coalescing) to allow 0 as a valid value
+            const tithe = totalMonthlyGross * 0.1;
+            const availableFunds = monthData.tthAvailableFunds ?? 1000;
+            const defaultHousingBack = Math.round(settings.annualHousingAllowance / 12);
+            const housingBack = monthData.housingBack ?? defaultHousingBack;
+            const additionalTithe = Math.max(0, tithe - availableFunds);
+            const calculatedCheckToTTH = Math.round(housingBack + additionalTithe);
+            // Check to TTH defaults to calculated value (rounded to whole dollars)
+            const checkToTTH = monthData.tthCheckTo ?? calculatedCheckToTTH;
+
+            return (
+              <div className="card" style={{ padding: '24px' }}>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Take the Hill</label>
+                <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>{currentMonth} transactions and annual tax settings</p>
+
+                {/* Calculated Reference Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px', padding: '16px', background: 'var(--bg-subtle)', borderRadius: '12px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Gross Income</p>
+                    <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{formatCurrency(totalMonthlyGross)}</p>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Tithe (10%)</p>
+                    <p style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{formatCurrency(tithe)}</p>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0 }}>Additional Tithe</p>
+                    <p style={{ fontSize: '16px', fontWeight: '600', color: additionalTithe > 0 ? '#D97706' : 'var(--positive-dark)', margin: '4px 0 0 0' }}>{formatCurrency(additionalTithe)}</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <SettingInput label="Annual Housing Allowance" value={settings.annualHousingAllowance} onChange={(v) => updateSettings('annualHousingAllowance', v)} hint={`Monthly: ${formatCurrency(settings.annualHousingAllowance / 12)}`} />
+                  <SettingInput label="Available Funds in TTH" value={availableFunds} onChange={(v) => updateMonthlyField('tthAvailableFunds', v)} hint="Funds available inside TTH this month" />
+                  <SettingInput label="Check to TTH" value={checkToTTH} onChange={(v) => updateMonthlyField('tthCheckTo', v)} hint={`= ${formatCurrency(housingBack)} + ${formatCurrency(additionalTithe)}`} />
+                  <SettingInput label="Housing Allowance Back" value={housingBack} onChange={(v) => updateMonthlyField('housingBack', v)} hint={`Annual Ã· 12 = ${formatCurrency(defaultHousingBack)}`} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Monthly Expenses - Per Month */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{currentMonth} Expenses</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Enter this month's living expenses</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <SettingInput label="Monthly Bills" value={monthData.monthlyBills || ''} onChange={(v) => updateMonthlyField('monthlyBills', v)} hint="Living expenses aggregate" />
+            </div>
+          </div>
+
+          {/* Investment Contributions */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monthly Investment Contributions</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Fixed amounts invested each month</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <SettingInput label="Erik's Roth IRA" value={settings.erikIRA} onChange={(v) => updateSettings('erikIRA', v)} hint={settings.rothMax === 7000 ? "Max: $7K/yr â $583/mo" : "Max: $8K/yr â $667/mo"} />
+              <SettingInput label="Betsy's Traditional IRA" value={settings.betsyIRA} onChange={(v) => updateSettings('betsyIRA', v)} hint={settings.betsyIRAMax === 7000 ? "Max: $7K/yr â $583/mo" : "Max: $8K/yr â $667/mo"} />
+              <SettingInput label="Bitcoin (Combined)" value={settings.bitcoin} onChange={(v) => updateSettings('bitcoin', v)} hint={`Suggested: $${Math.round((settings.rothMax / 4) / 12) + Math.round((settings.betsyIRAMax / 4) / 12)}/mo (20% of both portfolios)`} />
+            </div>
+          </div>
+
+          {/* Erik's Investment Portfolio */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Erik's Investment Portfolio</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Roth IRA = 80% (4 segments) | Bitcoin = 20% (1 segment)</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Roth IRA Annual Max</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => updateSettings('rothMax', 7000)}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: settings.rothMax === 7000 ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: settings.rothMax === 7000 ? 'rgba(88, 86, 214, 0.08)' : 'var(--bg-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: settings.rothMax === 7000 ? 'var(--accent)' : 'var(--text-secondary)' }}>$7,000</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Under 50</div>
+                  </button>
+                  <button
+                    onClick={() => updateSettings('rothMax', 8000)}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: settings.rothMax === 8000 ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: settings.rothMax === 8000 ? 'rgba(88, 86, 214, 0.08)' : 'var(--bg-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: settings.rothMax === 8000 ? 'var(--accent)' : 'var(--text-secondary)' }}>$8,000</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Age 50+</div>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(247, 147, 26, 0.08)', padding: '16px', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '20px' }}>â¿</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Erik's Bitcoin (20%)</span>
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#F7931A' }}>${Math.round((settings.rothMax / 4) / 12)}<span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span></div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCurrency(settings.rothMax / 4)}/year</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Betsy's Investment Portfolio */}
+          <div className="card" style={{ padding: '24px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Betsy's Investment Portfolio</label>
+            <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Traditional IRA (401k Rollover) = 80% | Bitcoin = 20%</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Traditional IRA Annual Max</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => updateSettings('betsyIRAMax', 7000)}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: settings.betsyIRAMax === 7000 ? '2px solid #A855F7' : '1px solid var(--border)',
+                      background: settings.betsyIRAMax === 7000 ? 'rgba(168, 85, 247, 0.08)' : 'var(--bg-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: settings.betsyIRAMax === 7000 ? '#A855F7' : 'var(--text-secondary)' }}>$7,000</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Under 50</div>
+                  </button>
+                  <button
+                    onClick={() => updateSettings('betsyIRAMax', 8000)}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: settings.betsyIRAMax === 8000 ? '2px solid #A855F7' : '1px solid var(--border)',
+                      background: settings.betsyIRAMax === 8000 ? 'rgba(168, 85, 247, 0.08)' : 'var(--bg-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: settings.betsyIRAMax === 8000 ? '#A855F7' : 'var(--text-secondary)' }}>$8,000</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Age 50+</div>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(247, 147, 26, 0.08)', padding: '16px', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '20px' }}>â¿</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Betsy's Bitcoin (20%)</span>
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#F7931A' }}>${Math.round((settings.betsyIRAMax / 4) / 12)}<span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span></div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{formatCurrency(settings.betsyIRAMax / 4)}/year</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      );
+    }
+
+    function Row({ label, value, muted, positive }) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{label}</span>
+          <span style={{ fontWeight: '500', color: muted ? 'var(--text-muted)' : positive ? 'var(--positive-dark)' : 'var(--text-secondary)' }}>{value}</span>
+        </div>
+      );
+    }
+
+    function Stat({ label, value, small, negative }) {
+      return (
+        <div style={{ background: 'var(--bg-subtle)', padding: '14px', borderRadius: '10px' }}>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{label}</p>
+          <p style={{ fontWeight: '600', fontSize: small ? '12px' : '16px', marginTop: small ? '4px' : '2px', color: negative ? 'var(--negative)' : 'var(--text-secondary)', margin: '4px 0 0 0' }}>{value}</p>
+        </div>
+      );
+    }
+
+    function SettingInput({ label, value, onChange, hint }) {
+      return (
+        <div>
+          <label style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)' }}>{label}</label>
+          <div style={{ position: 'relative', marginTop: '6px' }}>
+            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>$</span>
+            <input type="number" value={value || ''} onChange={(e) => onChange(e.target.value)} style={{ width: '100%', paddingLeft: '36px', paddingRight: '14px', paddingTop: '12px', paddingBottom: '12px', fontSize: '18px', fontWeight: '600' }} />
+          </div>
+          {hint && <p style={{ fontSize: '11px', color: 'var(--text-subtle)', marginTop: '6px' }}>{hint}</p>}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
