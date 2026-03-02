@@ -122,7 +122,89 @@
       return data ? data.data : null;
     }
 
+    // Count how many months have real data (income streams with entries)
+    function countMonthsWithData(appData) {
+      if (!appData || !appData.years) return 0;
+      let count = 0;
+      Object.values(appData.years).forEach(yearData => {
+        Object.values(yearData || {}).forEach(monthData => {
+          if (monthData && monthData.incomeStreams && monthData.incomeStreams.length > 0) count++;
+        });
+      });
+      return count;
+    }
+
+    // Backup before every save — keeps last 20 snapshots
+    async function backupBeforeSave(userId) {
+      try {
+        const current = await loadFromSupabase(userId);
+        if (!current) return; // nothing to back up
+        // Only back up if there's real data
+        if (countMonthsWithData(current) === 0) return;
+        await sb.from('bookkeeper_backups').insert({
+          user_id: userId,
+          data: current,
+          created_at: new Date().toISOString(),
+          reason: 'auto_backup_before_save'
+        });
+        // Clean old backups — keep last 20
+        const { data: backups } = await sb.from('bookkeeper_backups')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+        if (backups && backups.length > 20) {
+          const toDelete = backups.slice(20).map(b => b.id);
+          await sb.from('bookkeeper_backups').delete().in('id', toDelete);
+        }
+      } catch (e) {
+        console.warn('Backup failed (non-fatal):', e);
+        // Backup failure should never block the save
+      }
+    }
+
+    // Recovery function — call from browser console: recoverBackup()
+    window.recoverBackup = async function(backupIndex = 0) {
+      try {
+        const { data: session } = await sb.auth.getSession();
+        if (!session?.session?.user) { console.error('Not signed in'); return; }
+        const userId = session.session.user.id;
+        const { data: backups } = await sb.from('bookkeeper_backups')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        if (!backups || backups.length === 0) { console.log('No backups found'); return; }
+        if (backupIndex >= backups.length) { console.log('Invalid index. Available: 0-' + (backups.length-1)); return; }
+        console.log('Available backups:');
+        backups.forEach((b, i) => console.log(i + ': ' + b.created_at + ' (' + countMonthsWithData(b.data) + ' months with data)'));
+        if (arguments.length > 0) {
+          const backup = backups[backupIndex];
+          console.log('Restoring backup from ' + backup.created_at + '...');
+          await sb.from('bookkeeper_data').upsert(
+            { user_id: userId, data: backup.data, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(backup.data));
+          console.log('Restored! Refresh the page.');
+        }
+      } catch (e) { console.error('Recovery failed:', e); }
+    };
+
     async function saveToSupabase(userId, appData) {
+      // PROTECTION: Never overwrite real data with empty data
+      const newDataCount = countMonthsWithData(appData);
+      try {
+        const existing = await loadFromSupabase(userId);
+        const existingCount = countMonthsWithData(existing);
+        if (existingCount > 0 && newDataCount === 0) {
+          console.warn('BLOCKED: Refusing to overwrite ' + existingCount + ' months of data with empty data.');
+          return;
+        }
+        // Back up before overwriting
+        await backupBeforeSave(userId);
+      } catch (e) {
+        console.warn('Pre-save check failed (non-fatal):', e);
+      }
       const { error } = await sb.from('bookkeeper_data').upsert(
         { user_id: userId, data: appData, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
@@ -395,9 +477,11 @@
                 await saveToSupabase(user.id, localData);
               }
             }
+            cloudSyncDone.current = true;
             setSyncStatus('synced');
           } catch (e) {
             console.error('Cloud sync failed:', e);
+            cloudSyncDone.current = true; // Allow saves even if cloud sync fails
             setSyncStatus('error');
           }
         })();
@@ -405,13 +489,15 @@
 
       // Save data: always to localStorage, and to cloud if signed in
       const saveRef = React.useRef(false);
+      const cloudSyncDone = React.useRef(false);
       useEffect(() => {
         const data = { years, debtCards, cardData, currentYear, currentMonth, settings };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
-        // Sync to cloud (debounced, skip initial render)
+        // Sync to cloud (debounced, skip initial render, wait for cloud sync)
         if (!saveRef.current) { saveRef.current = true; return; }
         if (!user) return;
+        if (!cloudSyncDone.current) { console.log('Save skipped — waiting for cloud sync to finish'); return; }
 
         const timer = setTimeout(async () => {
           try {
