@@ -711,6 +711,39 @@
 
       const tabs = ['TTH Calculator', 'Money at Home', 'Credit Cards', 'Taxes', 'Settings'];
 
+      // LOGIN WALL — nothing renders until authenticated
+      if (authLoading) {
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1a1a2e' }}>
+            <p style={{ color: '#C89B3C', fontSize: '18px', fontFamily: 'Poppins, sans-serif' }}>Loading...</p>
+          </div>
+        );
+      }
+
+      if (!user) {
+        return (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            height: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%)',
+            fontFamily: 'Poppins, sans-serif'
+          }}>
+            <img src="logo.png" alt="Erik Bledsoe" style={{ width: '320px', marginBottom: '40px', opacity: 0.95 }} />
+            <h1 style={{ fontSize: '28px', fontWeight: '600', color: '#ffffff', margin: '0 0 8px 0', letterSpacing: '0.5px' }}>Monthly Bookkeeper</h1>
+            <p style={{ fontSize: '15px', color: '#8892a4', margin: '0 0 40px 0' }}>Sign in to access your financial data</p>
+            <button onClick={handleSignIn} style={{
+              background: '#C89B3C', color: '#1a1a2e', border: 'none', borderRadius: '8px',
+              padding: '14px 36px', fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+              fontFamily: 'Poppins, sans-serif', letterSpacing: '0.3px',
+              boxShadow: '0 4px 20px rgba(200, 155, 60, 0.3)',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+            }}
+            onMouseOver={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 28px rgba(200, 155, 60, 0.45)'; }}
+            onMouseOut={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 20px rgba(200, 155, 60, 0.3)'; }}
+            >Sign in with Google</button>
+          </div>
+        );
+      }
+
       return (
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
@@ -723,15 +756,9 @@
               {syncStatus === 'synced' && <span style={{ color: 'var(--positive-dark)', fontSize: '12px' }}>{'\u2601\uFE0F'} Synced</span>}
               {syncStatus === 'syncing' && <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Syncing...</span>}
               {syncStatus === 'error' && <span style={{ color: 'var(--negative)', fontSize: '12px' }}>Sync error</span>}
-              {user ? (
-                <button onClick={handleSignOut} className="btn btn-secondary" style={{ fontSize: '12px', padding: '6px 12px' }}>
-                  Sign Out
-                </button>
-              ) : (
-                <button onClick={handleSignIn} className="btn" style={{ background: 'var(--accent)', color: 'white', fontSize: '12px', padding: '6px 12px' }}>
-                  Sign in with Google
-                </button>
-              )}
+              <button onClick={handleSignOut} className="btn btn-secondary" style={{ fontSize: '12px', padding: '6px 12px' }}>
+                Sign Out
+              </button>
             </div>
           </div>
 
