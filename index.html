@@ -388,7 +388,7 @@
               if (cloudData.cardData) setCardData(cloudData.cardData);
               if (cloudData.settings) setSettings({ ...createDefaultSettings(), ...cloudData.settings });
             } else {
-              // No cloud data yet â push local data up
+              // No cloud data yet — push local data up
               const localSaved = localStorage.getItem(STORAGE_KEY);
               if (localSaved) {
                 const localData = JSON.parse(localSaved);
@@ -634,7 +634,7 @@
             </div>
             {/* Auth controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {syncStatus === 'synced' && <span style={{ color: 'var(--positive-dark)', fontSize: '12px' }}>âï¸ Synced</span>}
+              {syncStatus === 'synced' && <span style={{ color: 'var(--positive-dark)', fontSize: '12px' }}>{'\u2601\uFE0F'} Synced</span>}
               {syncStatus === 'syncing' && <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Syncing...</span>}
               {syncStatus === 'error' && <span style={{ color: 'var(--negative)', fontSize: '12px' }}>Sync error</span>}
               {user ? (
@@ -674,7 +674,7 @@
                 className={isAnnualView ? 'month-annual' : 'month-inactive'}
                 style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
               >
-                ð Annual
+                {'\u{1F4CA}'} Annual
               </button>
             </div>
           </div>
@@ -1016,7 +1016,7 @@
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ðµ</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{1F4B5}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Tax Set-Aside</h3>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{(taxInfo.effectiveRate * 100).toFixed(1)}% effective</p>
@@ -1037,10 +1037,10 @@
 
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(90, 200, 200, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(90, 200, 200, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{1F4C8}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Erik's Roth IRA</h3>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>80% of portfolio (4 Ã 20%)</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>80% of portfolio (4 × 20%)</p>
                 </div>
               </div>
               <div style={{ fontSize: '22px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(erikIRA)}</div>
@@ -1058,10 +1058,10 @@
 
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{1F4CA}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Betsy's Traditional IRA</h3>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>401(k) Rollover â¢ From Settings</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>401(k) Rollover {'\u2022'} From Settings</p>
                 </div>
               </div>
               <div style={{ fontSize: '22px', fontWeight: '700', color: '#A855F7' }}>{formatCurrency(betsyIRA)}</div>
@@ -1079,7 +1079,7 @@
 
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(247, 147, 26, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>â¿</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(247, 147, 26, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{20BF}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Bitcoin</h3>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>From Settings</p>
@@ -1104,7 +1104,7 @@
 
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð </div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{1F3E0}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Bills & Living</h3>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>From Settings</p>
@@ -1115,7 +1115,7 @@
 
             <div className="card" style={{ padding: '20px', background: availableForDebt < 0 ? 'rgba(229, 115, 115, 0.08)' : 'rgba(90, 200, 200, 0.08)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: availableForDebt < 0 ? 'rgba(229, 115, 115, 0.2)' : 'rgba(90, 200, 200, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>ð°</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: availableForDebt < 0 ? 'rgba(229, 115, 115, 0.2)' : 'rgba(90, 200, 200, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{'\u{1F4B0}'}</div>
                 <div>
                   <h3 style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', margin: 0 }}>Available for Debt</h3>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>After allocations</p>
@@ -1499,17 +1499,17 @@
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               <div style={{ padding: '16px', background: 'rgba(88, 86, 214, 0.06)', borderRadius: '12px' }}>
                 <p style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: '600', margin: 0 }}>W-2 Income SE Tax</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(w2Income)} Ã 14.13%</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(w2Income)} × 14.13%</p>
                 <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--accent)', margin: 0 }}>{formatCurrency(taxInfo.monthlySETaxW2)}/mo</p>
               </div>
               <div style={{ padding: '16px', background: 'rgba(245, 158, 11, 0.06)', borderRadius: '12px' }}>
                 <p style={{ fontSize: '11px', color: '#D97706', fontWeight: '600', margin: 0 }}>1099 Income SE Tax</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(income1099)} Ã 14.13%</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(income1099)} × 14.13%</p>
                 <p style={{ fontSize: '20px', fontWeight: '700', color: '#D97706', margin: 0 }}>{formatCurrency(taxInfo.monthlySETax1099)}/mo</p>
               </div>
               <div style={{ padding: '16px', background: 'var(--bg-subtle)', borderRadius: '12px', border: '2px solid var(--border)' }}>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', margin: 0 }}>Total SE Tax</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(gross)} Ã 14.13%</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 8px 0' }}>{formatCurrency(gross)} × 14.13%</p>
                 <p style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>{formatCurrency(taxInfo.monthlySETax)}/mo</p>
               </div>
             </div>
@@ -1526,15 +1526,15 @@
                 <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.annualGross)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '14px', color: 'var(--positive-dark)' }}>â Housing Allowance (IRC Â§107)</span>
+                <span style={{ fontSize: '14px', color: 'var(--positive-dark)' }}>− Housing Allowance (IRC §107)</span>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--positive-dark)' }}>({formatCurrency(settings.annualHousingAllowance)})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>â 50% of SE Tax (Deduction)</span>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>− 50% of SE Tax (Deduction)</span>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>({formatCurrency(taxInfo.seDeduction)})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>â Standard Deduction (MFJ)</span>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>− Standard Deduction (MFJ)</span>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>({formatCurrency(STANDARD_DEDUCTION_MFJ)})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', marginTop: '4px', background: 'white', borderRadius: '8px', paddingLeft: '12px', paddingRight: '12px' }}>
@@ -1543,7 +1543,7 @@
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', marginTop: '12px' }}>
                 <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Income Tax ({(taxInfo.currentBracket * 100).toFixed(0)}% bracket)</span>
-                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.annualIncomeTax)}/yr â {formatCurrency(taxInfo.monthlyIncomeTax)}/mo</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{formatCurrency(taxInfo.annualIncomeTax)}/yr → {formatCurrency(taxInfo.monthlyIncomeTax)}/mo</span>
               </div>
             </div>
           </div>
@@ -1571,7 +1571,7 @@
             <div className="card" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(88, 86, 214, 0.05) 0%, rgba(124, 122, 230, 0.05) 100%)' }}>
               <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quarterly Estimated Payment</label>
               <div style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>{formatCurrency(taxInfo.totalMonthlyTax)} Ã 3 months</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>{formatCurrency(taxInfo.totalMonthlyTax)} × 3 months</div>
                 <div style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent)' }}>{formatCurrency(taxInfo.quarterlyPayment)}</div>
                 <div style={{ marginTop: '16px', padding: '12px', background: 'white', borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
                   Due: Apr 15, Jun 15, Sep 15, Jan 15
@@ -1585,7 +1585,7 @@
             <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Housing Allowance Benefit</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '16px' }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Annual Tax Savings (IRC Â§107)</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Annual Tax Savings (IRC §107)</div>
                 <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--positive-dark)' }}>{formatCurrency(taxInfo.housingAllowanceSavings)}</div>
               </div>
               <div style={{ padding: '12px 16px', background: 'white', borderRadius: '10px', fontSize: '12px', color: 'var(--text-muted)', maxWidth: '300px' }}>
@@ -1722,7 +1722,7 @@
                   <button
                     onClick={() => removeIncomeStream(stream.id)}
                     style={{ width: '36px', height: '36px', borderRadius: '8px', border: 'none', background: 'rgba(229, 115, 115, 0.1)', color: 'var(--negative)', cursor: 'pointer', fontSize: '18px' }}
-                  >Ã</button>
+                  >×</button>
                 </div>
               ))}
             </div>
@@ -1776,7 +1776,7 @@
                   <SettingInput label="Annual Housing Allowance" value={settings.annualHousingAllowance} onChange={(v) => updateSettings('annualHousingAllowance', v)} hint={`Monthly: ${formatCurrency(settings.annualHousingAllowance / 12)}`} />
                   <SettingInput label="Available Funds in TTH" value={availableFunds} onChange={(v) => updateMonthlyField('tthAvailableFunds', v)} hint="Funds available inside TTH this month" />
                   <SettingInput label="Check to TTH" value={checkToTTH} onChange={(v) => updateMonthlyField('tthCheckTo', v)} hint={`= ${formatCurrency(housingBack)} + ${formatCurrency(additionalTithe)}`} />
-                  <SettingInput label="Housing Allowance Back" value={housingBack} onChange={(v) => updateMonthlyField('housingBack', v)} hint={`Annual Ã· 12 = ${formatCurrency(defaultHousingBack)}`} />
+                  <SettingInput label="Housing Allowance Back" value={housingBack} onChange={(v) => updateMonthlyField('housingBack', v)} hint={`Annual ÷ 12 = ${formatCurrency(defaultHousingBack)}`} />
                 </div>
               </div>
             );
@@ -1798,8 +1798,8 @@
             <p style={{ fontSize: '12px', color: 'var(--text-subtle)', marginTop: '4px', marginBottom: '20px' }}>Fixed amounts invested each month</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-              <SettingInput label="Erik's Roth IRA" value={settings.erikIRA} onChange={(v) => updateSettings('erikIRA', v)} hint={settings.rothMax === 7000 ? "Max: $7K/yr â $583/mo" : "Max: $8K/yr â $667/mo"} />
-              <SettingInput label="Betsy's Traditional IRA" value={settings.betsyIRA} onChange={(v) => updateSettings('betsyIRA', v)} hint={settings.betsyIRAMax === 7000 ? "Max: $7K/yr â $583/mo" : "Max: $8K/yr â $667/mo"} />
+              <SettingInput label="Erik's Roth IRA" value={settings.erikIRA} onChange={(v) => updateSettings('erikIRA', v)} hint={settings.rothMax === 7000 ? "Max: $7K/yr → $583/mo" : "Max: $8K/yr → $667/mo"} />
+              <SettingInput label="Betsy's Traditional IRA" value={settings.betsyIRA} onChange={(v) => updateSettings('betsyIRA', v)} hint={settings.betsyIRAMax === 7000 ? "Max: $7K/yr → $583/mo" : "Max: $8K/yr → $667/mo"} />
               <SettingInput label="Bitcoin (Combined)" value={settings.bitcoin} onChange={(v) => updateSettings('bitcoin', v)} hint={`Suggested: $${Math.round((settings.rothMax / 4) / 12) + Math.round((settings.betsyIRAMax / 4) / 12)}/mo (20% of both portfolios)`} />
             </div>
           </div>
@@ -1848,7 +1848,7 @@
 
               <div style={{ background: 'rgba(247, 147, 26, 0.08)', padding: '16px', borderRadius: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '20px' }}>â¿</span>
+                  <span style={{ fontSize: '20px' }}>{'\u{20BF}'}</span>
                   <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Erik's Bitcoin (20%)</span>
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: '700', color: '#F7931A' }}>${Math.round((settings.rothMax / 4) / 12)}<span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span></div>
@@ -1901,7 +1901,7 @@
 
               <div style={{ background: 'rgba(247, 147, 26, 0.08)', padding: '16px', borderRadius: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '20px' }}>â¿</span>
+                  <span style={{ fontSize: '20px' }}>{'\u{20BF}'}</span>
                   <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Betsy's Bitcoin (20%)</span>
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: '700', color: '#F7931A' }}>${Math.round((settings.betsyIRAMax / 4) / 12)}<span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span></div>
